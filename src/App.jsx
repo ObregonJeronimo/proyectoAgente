@@ -2,11 +2,6 @@ import { useState, useEffect, useRef } from 'react'
 import { useAgentControl } from './useAgent'
 import './index.css'
 
-const NICHES = [
-  'Plomero', 'Dentista', 'Techista / Roofer', 'Peluqueria / Salon',
-  'HVAC / Aire acondicionado', 'Estudio contable', 'Veterinaria', 'Mecanico'
-]
-
 function fmt(ts) {
   if (!ts) return '--:--:--'
   const d = ts.toDate ? ts.toDate() : new Date(ts)
@@ -15,7 +10,7 @@ function fmt(ts) {
 
 export default function App() {
   const { status, logs, leads, metrics, sendCommand } = useAgentControl()
-  const [config, setConfig] = useState({ niche: 'Plomero', city: 'Cordoba', target: 25, pause: 45 })
+  const [config, setConfig] = useState({ niche: '', city: 'Cordoba', target: 25, pause: 45 })
   const logRef = useRef(null)
 
   useEffect(() => {
@@ -51,9 +46,7 @@ export default function App() {
         <div className="config-grid">
           <div className="field">
             <label>Nicho</label>
-            <select value={config.niche} onChange={e => setConfig(c => ({ ...c, niche: e.target.value }))}>
-              {NICHES.map(n => <option key={n}>{n}</option>)}
-            </select>
+            <input type="text" placeholder="Ej: Plomero, Dentista, Mecanico..." value={config.niche} onChange={e => setConfig(c => ({ ...c, niche: e.target.value }))} />
           </div>
           <div className="field">
             <label>Ciudad</label>
@@ -64,7 +57,7 @@ export default function App() {
             <input type="number" min="5" max="100" value={config.target} onChange={e => setConfig(c => ({ ...c, target: +e.target.value }))} />
           </div>
           <div className="field">
-            <label>Pausa entre mensajes (seg)</label>
+            <label>Pausa entre mensajes (seg) <span style={{color:'var(--muted)',fontWeight:400,fontSize:10}}>— Fase 4</span></label>
             <input type="number" min="15" max="300" value={config.pause} onChange={e => setConfig(c => ({ ...c, pause: +e.target.value }))} />
           </div>
         </div>
