@@ -50,7 +50,7 @@ function SessionBlock({ run, logs, isActive }) {
 
 export default function App() {
   const { status, logs, leads, runs, metrics, sendCommand, serverOnline } = useAgentControl()
-  const [config, setConfig] = useState({ niche: '', city: 'Cordoba', target: 25, pause: 45 })
+  const [config, setConfig] = useState({ niche: '', city: 'Cordoba', target: 25, pause: 45, max_reviews: 80, min_rating: 3.9 })
 
   const running = status.running
   const activeRunId = runs.length > 0 && running ? runs[0].id : null
@@ -107,6 +107,14 @@ export default function App() {
           <div className="field">
             <label>Pausa entre mensajes (seg) <span style={{color:'var(--muted)',fontWeight:400,fontSize:10}}>Fase 4</span></label>
             <input type="number" min="15" max="300" value={config.pause} onChange={e => setConfig(c => ({ ...c, pause: +e.target.value }))} />
+          </div>
+          <div className="field">
+            <label>Resenas maximas</label>
+            <input type="number" min="1" max="500" value={config.max_reviews} onChange={e => setConfig(c => ({ ...c, max_reviews: +e.target.value }))} />
+          </div>
+          <div className="field">
+            <label>Estrellas minimas</label>
+            <input type="number" min="1" max="5" step="0.1" value={config.min_rating} onChange={e => setConfig(c => ({ ...c, min_rating: +e.target.value }))} />
           </div>
         </div>
       </div>
