@@ -57,8 +57,18 @@ function LeadDetail({ lead }) {
 
 function SessionCard({ run, logs, isActive }) {
   const [open, setOpen] = useState(isActive)
+  const [copied, setCopied] = useState(false)
   const sessionLogs = logs.filter(l => l.run_id === run.id)
   const hasError = sessionLogs.some(l => l.level === 'error')
+
+  function copySession(e) {
+    e.stopPropagation()
+    const text = sessionLogs.map(l => `${fmt(l.timestamp)}  ${l.message}`).join('\n')
+    navigator.clipboard.writeText(text).then(() => {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    })
+  }
 
   return (
     <div className={`session-block ${isActive ? 'active' : ''} ${hasError ? 'has-error' : ''}`}>
@@ -75,6 +85,9 @@ function SessionCard({ run, logs, isActive }) {
           {!run.completed && !isActive && <span className="badge pending">interrumpida</span>}
           {isActive && <span className="badge analyzed">activa</span>}
           {hasError && <span className="badge" style={{background:'rgba(239,68,68,0.1)',color:'var(--red)',border:'1px solid rgba(239,68,68,0.3)'}}>error</span>}
+          <button className="copy-btn" onClick={copySession} style={{fontSize:11}}>
+            {copied ? '✓ Copiado' : 'Copiar log'}
+          </button>
           <span className="session-chevron">{open ? '▲' : '▼'}</span>
         </div>
       </div>
