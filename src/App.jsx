@@ -14,12 +14,40 @@ function fmtDate(ts) {
   return d.toLocaleString('es-AR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
 }
 
-function LogLine({ l }) {
-  if (l.level === 'separator') return <hr className="log-separator" />
+function SessionBlock({ run, logs, isActive }) {
+  const [open, setOpen] = useState(isActive)
+  const logRef = useRef(null)
+  const sessionLogs = logs.filter(l => l.run_id === run.id)
+
+  useEffect(() => {
+    if (isActive && logRef.current) logRef.current.scrollTop = logRef.current.scrollHeight
+  }, [sessionLogs.length, isActive])
+
   return (
-    <div className="log-line">
-      <span className="log-time">{fmt(l.timestamp)}</span>
-      <span className={`log-msg ${l.level}`}>{l.message}</span>
+    <div className={`session-block ${isActive ? 'active' : ''}`}>
+      <div className="session-header" onClick={() => setOpen(o => !o)}>
+        <div className="session-header-left">
+          <div className={`dot ${isActive ? 'pulse' : ''}`} style={{ color: isActive ? 'var(--green)' : 'var(--muted)', flexShrink: 0 }}></div>
+          <span className="session-title">{run.niche || '—'} / {run.city || '—'}</span>
+          <span className="session-meta">{fmtDate(run.started_at)}</span>
+          {run.leads_found > 0 && <span className="badge analyzed">{run.leads_found} leads</span>}
+          {!run.completed && !isActive && <span className="badge pending">interrumpida</span>}
+        </div>
+        <span className="session-chevron">{open ? '▲' : '▼'}</span>
+      </div>
+      {open && (
+        <div className="log-box" ref={logRef} style={{ borderTop: '1px solid var(--border)', borderRadius: '0 0 8px 8px' }}>
+          {sessionLogs.length === 0
+            ? <span style={{ color: 'var(--muted)' }}>Sin logs aun...</span>
+            : sessionLogs.map(l => (
+              <div key={l.id} className="log-line">
+                <span className="log-time">{fmt(l.timestamp)}</span>
+                <span className={`log-msg ${l.level}`}>{l.message}</span>
+              </div>
+            ))
+          }
+        </div>
+      )}
     </div>
   )
 }
@@ -27,23 +55,8 @@ function LogLine({ l }) {
 export default function App() {
   const { status, logs, leads, runs, metrics, sendCommand } = useAgentControl()
   const [config, setConfig] = useState({ niche: '', city: 'Cordoba', target: 25, pause: 45 })
-  const [sessionStart, setSessionStart] = useState(null)
-  const [showHistory, setShowHistory] = useState(false)
-  const logRef = useRef(null)
-  const histRef = useRef(null)
-
-  useEffect(() => {
-    if (logRef.current) logRef.current.scrollTop = logRef.current.scrollHeight
-  }, [logs, sessionStart])
-
-  const toMs = ts => ts ? (ts.toDate ? ts.toDate() : new Date(ts)).getTime() : 0
-
-  const currentLogs = sessionStart ? logs.filter(l => toMs(l.timestamp) >= sessionStart) : []
-  const historyLogs = sessionStart ? logs.filter(l => toMs(l.timestamp) < sessionStart) : logs
 
   async function handleStart() {
-    setSessionStart(Date.now())
-    setShowHistory(false)
     await sendCommand('start', config)
   }
 
@@ -52,6 +65,7 @@ export default function App() {
   }
 
   const running = status.running
+  const activeRunId = runs.length > 0 ? runs[0].id : null
 
   return (
     <div className="panel">
@@ -123,27 +137,20 @@ export default function App() {
       </div>
 
       <div className="card">
-        <div className="card-title">Log — sesion actual</div>
-        <div className="log-box" ref={logRef}>
-          {currentLogs.length === 0
-            ? <span style={{ color: 'var(--muted)' }}>Inicia el agente para ver actividad...</span>
-            : currentLogs.map(l => <LogLine key={l.id} l={l} />)
-          }
-        </div>
-        {historyLogs.length > 0 && (
-          <button
-            className="btn"
-            style={{ marginTop: 10, fontSize: 12, padding: '6px 14px' }}
-            onClick={() => setShowHistory(h => !h)}
-          >
-            {showHistory ? 'Ocultar historial de logs' : `Ver historial de logs (${historyLogs.length} entradas)`}
-          </button>
-        )}
-        {showHistory && (
-          <div className="log-box" ref={histRef} style={{ marginTop: 8, opacity: 0.6 }}>
-            {historyLogs.map(l => <LogLine key={l.id} l={l} />)}
-          </div>
-        )}
+        <div className="card-title">Sesiones</div>
+        {runs.length === 0
+          ? <span style={{ color: 'var(--muted)', fontSize: 12, fontFamily: 'var(--mono)' }}>Sin sesiones aun — inicia el agente</span>
+          : <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {runs.map(run => (
+                <SessionBlock
+                  key={run.id}
+                  run={run}
+                  logs={logs}
+                  isActive={run.id === activeRunId && running}
+                />
+              ))}
+            </div>
+        }
       </div>
 
       <div className="card">
@@ -171,39 +178,6 @@ export default function App() {
                     <td style={{ fontFamily: 'var(--mono)' }}>{l.reviews}</td>
                     <td>{l.has_web ? <span className="has-web">Si</span> : <span className="no-web">No</span>}</td>
                     <td><span className={`badge ${l.status}`}>{l.status}</span></td>
-                  </tr>
-                ))
-              }
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      <div className="card">
-        <div className="card-title">Historial de corridas</div>
-        <div className="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Fecha</th>
-                <th>Nicho</th>
-                <th>Ciudad</th>
-                <th>Leads</th>
-                <th>Duplicados</th>
-                <th>Estado</th>
-              </tr>
-            </thead>
-            <tbody>
-              {runs.length === 0
-                ? <tr><td colSpan={6} style={{ textAlign: 'center', color: 'var(--muted)', fontFamily: 'var(--mono)', fontSize: 12, padding: '2rem 0' }}>Sin corridas aun</td></tr>
-                : runs.map(r => (
-                  <tr key={r.id}>
-                    <td style={{ fontFamily: 'var(--mono)', fontSize: 12 }}>{fmtDate(r.started_at)}</td>
-                    <td>{r.niche}</td>
-                    <td style={{ color: 'var(--muted)' }}>{r.city}</td>
-                    <td style={{ fontFamily: 'var(--mono)' }}>{r.leads_found ?? '—'}</td>
-                    <td style={{ fontFamily: 'var(--mono)', color: 'var(--muted)' }}>{r.duplicates_skipped ?? '—'}</td>
-                    <td><span className={`badge ${r.completed ? 'analyzed' : 'pending'}`}>{r.completed ? 'completada' : 'interrumpida'}</span></td>
                   </tr>
                 ))
               }

@@ -133,3 +133,12 @@ tr:hover td { background: var(--surface); }
   .config-grid { grid-template-columns: 1fr; }
   #root { padding: 1rem; }
 }
+
+.session-block { border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+.session-block.active { border-color: rgba(34,197,94,0.3); }
+.session-header { display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; cursor: pointer; background: var(--surface); }
+.session-header:hover { background: var(--card); }
+.session-header-left { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.session-title { font-size: 13px; font-weight: 600; color: var(--text); }
+.session-meta { font-size: 11px; color: var(--muted); font-family: var(--mono); }
+.session-chevron { font-size: 10px; color: var(--muted); flex-shrink: 0; }
