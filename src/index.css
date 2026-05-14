@@ -142,3 +142,16 @@ tr:hover td { background: var(--surface); }
 .session-title { font-size: 13px; font-weight: 600; color: var(--text); }
 .session-meta { font-size: 11px; color: var(--muted); font-family: var(--mono); }
 .session-chevron { font-size: 10px; color: var(--muted); flex-shrink: 0; }
+
+.lead-row { cursor: pointer; }
+.lead-row:hover td { background: rgba(255,255,255,0.03); }
+.lead-detail { background: var(--surface); }
+.lead-detail td { padding: 0; border-bottom: 1px solid var(--border); }
+.lead-detail-inner { padding: 16px 20px; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+.lead-detail-block { display: flex; flex-direction: column; gap: 6px; }
+.lead-detail-label { font-size: 10px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
+.lead-detail-text { font-size: 12px; color: var(--text); line-height: 1.6; }
+.copy-btn { display: inline-flex; align-items: center; gap: 4px; margin-top: 6px; padding: 4px 10px; border-radius: 6px; border: 1px solid var(--border-strong); background: var(--card); color: var(--muted); font-size: 11px; cursor: pointer; transition: all 0.15s; }
+.copy-btn:hover { color: var(--green); border-color: var(--green); }
+.pending-text { color: var(--muted); font-size: 12px; font-style: italic; }
+@media (max-width: 700px) { .lead-detail-inner { grid-template-columns: 1fr; } }

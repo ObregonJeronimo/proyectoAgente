@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import React, { useState } from 'react'
 import { useAgentControl } from './useAgent'
 import './index.css'
 
@@ -12,6 +12,47 @@ function fmtFull(ts) {
   if (!ts) return '—'
   const d = ts.toDate ? ts.toDate() : new Date(ts)
   return d.toLocaleString('es-AR', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })
+}
+
+function LeadDetail({ lead }) {
+  function copy(text) {
+    navigator.clipboard.writeText(text).catch(() => {})
+  }
+  return (
+    <tr className="lead-detail">
+      <td colSpan={7}>
+        <div className="lead-detail-inner">
+          <div className="lead-detail-block">
+            <div className="lead-detail-label">Diagnostico</div>
+            {lead.diagnosis
+              ? <div className="lead-detail-text">{lead.diagnosis}</div>
+              : <div className="pending-text">Sin analisis todavia</div>
+            }
+          </div>
+          <div className="lead-detail-block">
+            <div className="lead-detail-label">Brief del sitio</div>
+            {lead.site_brief
+              ? <div className="lead-detail-text">{lead.site_brief}</div>
+              : <div className="pending-text">Sin analisis todavia</div>
+            }
+          </div>
+          <div className="lead-detail-block">
+            <div className="lead-detail-label">Mensaje de outreach</div>
+            {lead.outreach_message
+              ? <>
+                  <div className="lead-detail-text">{lead.outreach_message}</div>
+                  <button className="copy-btn" onClick={() => copy(lead.outreach_message)}>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{width:11,height:11}}><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+                    Copiar mensaje
+                  </button>
+                </>
+              : <div className="pending-text">Sin analisis todavia</div>
+            }
+          </div>
+        </div>
+      </td>
+    </tr>
+  )
 }
 
 function SessionCard({ run, logs, isActive }) {
@@ -58,6 +99,7 @@ export default function App() {
   const { status, logs, leads, runs, metrics, sendCommand, serverOnline, clearAll } = useAgentControl()
   const [config, setConfig] = useState({ niche: '', city: 'Cordoba', target: 25, pause: 45, max_reviews: 80, min_rating: 3.9 })
   const [clearing, setClearing] = useState(false)
+  const [expandedLead, setExpandedLead] = useState(null)
 
   const running = status.running
   const activeRunId = runs.length > 0 && running ? runs[0].id : null
@@ -195,15 +237,18 @@ export default function App() {
               {leads.length === 0
                 ? <tr><td colSpan={7} style={{ textAlign: 'center', color: 'var(--muted)', fontFamily: 'var(--mono)', fontSize: 12, padding: '2rem 0' }}>Inicia el agente para ver leads</td></tr>
                 : leads.map(l => (
-                  <tr key={l.id}>
-                    <td>{l.name}</td>
-                    <td style={{ color: 'var(--muted)' }}>{l.niche}</td>
-                    <td style={{ color: 'var(--muted)' }}>{l.city}</td>
-                    <td style={{ fontFamily: 'var(--mono)' }}>{l.reviews}</td>
-                    <td style={{ fontFamily: 'var(--mono)', fontSize: 12 }}>{l.phone || <span style={{color:'var(--muted)'}}>—</span>}</td>
-                    <td>{l.has_web ? <span className="has-web">Si</span> : <span className="no-web">No</span>}</td>
-                    <td><span className={`badge ${l.status}`}>{l.status}</span></td>
-                  </tr>
+                  <React.Fragment key={l.id}>
+                    <tr className="lead-row" onClick={() => setExpandedLead(expandedLead === l.id ? null : l.id)}>
+                      <td>{l.name} <span style={{fontSize:10,color:'var(--muted)',marginLeft:4}}>{expandedLead === l.id ? '▲' : '▼'}</span></td>
+                      <td style={{ color: 'var(--muted)' }}>{l.niche}</td>
+                      <td style={{ color: 'var(--muted)' }}>{l.city}</td>
+                      <td style={{ fontFamily: 'var(--mono)' }}>{l.reviews}</td>
+                      <td style={{ fontFamily: 'var(--mono)', fontSize: 12 }}>{l.phone || <span style={{color:'var(--muted)'}}>—</span>}</td>
+                      <td>{l.has_web ? <span className="has-web">Si</span> : <span className="no-web">No</span>}</td>
+                      <td><span className={`badge ${l.status}`}>{l.status}</span></td>
+                    </tr>
+                    {expandedLead === l.id && <LeadDetail lead={l} />}
+                  </React.Fragment>
                 ))
               }
             </tbody>
