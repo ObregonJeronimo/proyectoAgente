@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import {
   doc, collection, onSnapshot, setDoc, addDoc,
-  query, orderBy, limit, serverTimestamp
+  query, orderBy, limit, serverTimestamp, writeBatch, getDocs
 } from 'firebase/firestore'
 import { db } from './firebase'
 
@@ -41,7 +41,6 @@ export function useAgentControl() {
       setRuns(snap.docs.map(d => ({ id: d.id, ...d.data() })))
     })
 
-    // Chequear servidor local cada 3 segundos
     const checkServer = async () => {
       try {
         const r = await fetch(LOCAL_SERVER, { signal: AbortSignal.timeout(1500) })
@@ -57,7 +56,6 @@ export function useAgentControl() {
   }, [])
 
   async function sendCommand(command, config = {}) {
-    // Escribir en Firestore (para que el agente lea la config)
     await setDoc(doc(db, 'agent_control', 'status'), {
       running: command === 'start',
       command,
@@ -66,7 +64,6 @@ export function useAgentControl() {
       updated_at: serverTimestamp(),
     }, { merge: true })
 
-    // Hablar con servidor local para lanzar/matar el proceso
     if (serverOnline) {
       try {
         await fetch(LOCAL_SERVER, {
@@ -78,5 +75,30 @@ export function useAgentControl() {
     }
   }
 
-  return { status, logs, leads, runs, metrics, sendCommand, serverOnline }
+  async function clearAll() {
+    const cols = ['logs', 'runs', 'leads']
+    for (const col of cols) {
+      const snap = await getDocs(collection(db, col))
+      const batches = []
+      let batch = writeBatch(db)
+      let count = 0
+      snap.docs.forEach(d => {
+        batch.delete(d.ref)
+        count++
+        if (count % 400 === 0) {
+          batches.push(batch.commit())
+          batch = writeBatch(db)
+          count = 0
+        }
+      })
+      batches.push(batch.commit())
+      await Promise.all(batches)
+    }
+    await setDoc(doc(db, 'agent_control', 'status'), {
+      running: false, command: 'idle', current_task: '',
+      updated_at: serverTimestamp()
+    }, { merge: true })
+  }
+
+  return { status, logs, leads, runs, metrics, sendCommand, serverOnline, clearAll }
 }

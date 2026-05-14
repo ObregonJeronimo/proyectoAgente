@@ -8,28 +8,34 @@ function fmt(ts) {
   return d.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
 }
 
-function fmtDate(ts) {
+function fmtFull(ts) {
   if (!ts) return '—'
   const d = ts.toDate ? ts.toDate() : new Date(ts)
-  return d.toLocaleString('es-AR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
+  return d.toLocaleString('es-AR', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })
 }
 
-function SessionBlock({ run, logs, isActive }) {
+function SessionCard({ run, logs, isActive }) {
   const [open, setOpen] = useState(isActive)
   const sessionLogs = logs.filter(l => l.run_id === run.id)
+  const hasError = sessionLogs.some(l => l.level === 'error')
 
   return (
-    <div className={`session-block ${isActive ? 'active' : ''}`}>
+    <div className={`session-block ${isActive ? 'active' : ''} ${hasError ? 'has-error' : ''}`}>
       <div className="session-header" onClick={() => setOpen(o => !o)}>
         <div className="session-header-left">
-          <div className="dot" style={{ color: isActive ? 'var(--green)' : 'var(--muted)', flexShrink: 0, ...(isActive ? {} : {}) }}></div>
-          <span className="session-title">{run.niche || '—'} / {run.city || '—'}</span>
-          <span className="session-meta">{fmtDate(run.started_at)}</span>
-          {run.leads_found > 0 && <span className="badge analyzed">{run.leads_found} leads</span>}
-          {!run.completed && !isActive && <span className="badge pending">interrumpida</span>}
-          {run.completed && <span className="badge sent">completada</span>}
+          <div className="dot" style={{ color: isActive ? 'var(--green)' : hasError ? 'var(--red)' : 'var(--muted)' }}></div>
+          <div>
+            <div className="session-title">{run.niche || '—'} / {run.city || '—'}</div>
+            <div className="session-meta">{fmtFull(run.started_at)} · {run.leads_found ?? 0} leads · {run.duplicates_skipped ?? 0} duplicados</div>
+          </div>
         </div>
-        <span className="session-chevron">{open ? '▲' : '▼'}</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          {run.completed && <span className="badge sent">completada</span>}
+          {!run.completed && !isActive && <span className="badge pending">interrumpida</span>}
+          {isActive && <span className="badge analyzed">activa</span>}
+          {hasError && <span className="badge" style={{background:'rgba(239,68,68,0.1)',color:'var(--red)',border:'1px solid rgba(239,68,68,0.3)'}}>error</span>}
+          <span className="session-chevron">{open ? '▲' : '▼'}</span>
+        </div>
       </div>
       {open && (
         <div className="log-box" style={{ borderTop: '1px solid var(--border)', borderRadius: '0 0 8px 8px' }}>
@@ -49,8 +55,9 @@ function SessionBlock({ run, logs, isActive }) {
 }
 
 export default function App() {
-  const { status, logs, leads, runs, metrics, sendCommand, serverOnline } = useAgentControl()
+  const { status, logs, leads, runs, metrics, sendCommand, serverOnline, clearAll } = useAgentControl()
   const [config, setConfig] = useState({ niche: '', city: 'Cordoba', target: 25, pause: 45, max_reviews: 80, min_rating: 3.9 })
+  const [clearing, setClearing] = useState(false)
 
   const running = status.running
   const activeRunId = runs.length > 0 && running ? runs[0].id : null
@@ -61,6 +68,13 @@ export default function App() {
 
   async function handleStop() {
     await sendCommand('stop')
+  }
+
+  async function handleClear() {
+    if (!confirm('Borrar todos los leads, sesiones y logs?')) return
+    setClearing(true)
+    await clearAll()
+    setClearing(false)
   }
 
   return (
@@ -78,16 +92,10 @@ export default function App() {
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: serverOnline ? 'var(--green)' : 'var(--red)' }}>
             <div className="dot" style={{ width: 5, height: 5, color: serverOnline ? 'var(--green)' : 'var(--red)' }}></div>
-            {serverOnline ? 'Servidor local online' : 'Servidor local offline'}
+            {serverOnline ? 'Servidor online' : 'Servidor offline — abrí LeadBot.bat'}
           </div>
         </div>
       </div>
-
-      {!serverOnline && (
-        <div style={{ padding: '10px 14px', borderRadius: 8, background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)', fontSize: 12, color: 'var(--red)', fontFamily: 'var(--mono)' }}>
-          Correr <strong>LeadBot.bat</strong> en tu PC para habilitar el inicio automatico del agente.
-        </div>
-      )}
 
       <div className="card">
         <div className="card-title">Configuracion</div>
@@ -128,6 +136,10 @@ export default function App() {
           <svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12"/></svg>
           Detener
         </button>
+        <button className="btn" onClick={handleClear} disabled={clearing} style={{ marginLeft: 'auto', color: 'var(--red)', borderColor: 'rgba(239,68,68,0.4)' }}>
+          <svg viewBox="0 0 24 24" fill="currentColor" style={{width:14,height:14}}><path d="M9 3h6l1 1h4v2H4V4h4L9 3zm-2 5h10l-1 13H8L7 8zm5 2v9m-3-9v9m6-9v9"/></svg>
+          {clearing ? 'Limpiando...' : 'Limpiar datos'}
+        </button>
       </div>
 
       {running && (
@@ -158,7 +170,7 @@ export default function App() {
           ? <span style={{ color: 'var(--muted)', fontSize: 12, fontFamily: 'var(--mono)' }}>Sin sesiones — inicia el agente</span>
           : <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               {runs.map(run => (
-                <SessionBlock key={run.id} run={run} logs={logs} isActive={run.id === activeRunId} />
+                <SessionCard key={run.id} run={run} logs={logs} isActive={run.id === activeRunId} />
               ))}
             </div>
         }
@@ -174,19 +186,21 @@ export default function App() {
                 <th>Nicho</th>
                 <th>Ciudad</th>
                 <th>Resenas</th>
+                <th>Telefono</th>
                 <th>Web</th>
                 <th>Estado</th>
               </tr>
             </thead>
             <tbody>
               {leads.length === 0
-                ? <tr><td colSpan={6} style={{ textAlign: 'center', color: 'var(--muted)', fontFamily: 'var(--mono)', fontSize: 12, padding: '2rem 0' }}>Inicia el agente para ver leads</td></tr>
+                ? <tr><td colSpan={7} style={{ textAlign: 'center', color: 'var(--muted)', fontFamily: 'var(--mono)', fontSize: 12, padding: '2rem 0' }}>Inicia el agente para ver leads</td></tr>
                 : leads.map(l => (
                   <tr key={l.id}>
                     <td>{l.name}</td>
                     <td style={{ color: 'var(--muted)' }}>{l.niche}</td>
                     <td style={{ color: 'var(--muted)' }}>{l.city}</td>
                     <td style={{ fontFamily: 'var(--mono)' }}>{l.reviews}</td>
+                    <td style={{ fontFamily: 'var(--mono)', fontSize: 12 }}>{l.phone || <span style={{color:'var(--muted)'}}>—</span>}</td>
                     <td>{l.has_web ? <span className="has-web">Si</span> : <span className="no-web">No</span>}</td>
                     <td><span className={`badge ${l.status}`}>{l.status}</span></td>
                   </tr>
