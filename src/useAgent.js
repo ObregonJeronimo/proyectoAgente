@@ -79,20 +79,21 @@ export function useAgentControl() {
     const cols = ['logs', 'runs', 'leads']
     for (const col of cols) {
       const snap = await getDocs(collection(db, col))
-      const batches = []
-      let batch = writeBatch(db)
+      if (snap.empty) continue
+      const chunks = []
+      let chunk = writeBatch(db)
       let count = 0
       snap.docs.forEach(d => {
-        batch.delete(d.ref)
+        chunk.delete(d.ref)
         count++
         if (count % 400 === 0) {
-          batches.push(batch.commit())
-          batch = writeBatch(db)
+          chunks.push(chunk)
+          chunk = writeBatch(db)
           count = 0
         }
       })
-      batches.push(batch.commit())
-      await Promise.all(batches)
+      if (count > 0) chunks.push(chunk)
+      for (const b of chunks) await b.commit()
     }
     await setDoc(doc(db, 'agent_control', 'status'), {
       running: false, command: 'idle', current_task: '',
