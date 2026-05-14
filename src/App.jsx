@@ -14,16 +14,36 @@ function fmtDate(ts) {
   return d.toLocaleString('es-AR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
 }
 
+function LogLine({ l }) {
+  if (l.level === 'separator') return <hr className="log-separator" />
+  return (
+    <div className="log-line">
+      <span className="log-time">{fmt(l.timestamp)}</span>
+      <span className={`log-msg ${l.level}`}>{l.message}</span>
+    </div>
+  )
+}
+
 export default function App() {
   const { status, logs, leads, runs, metrics, sendCommand } = useAgentControl()
   const [config, setConfig] = useState({ niche: '', city: 'Cordoba', target: 25, pause: 45 })
+  const [sessionStart, setSessionStart] = useState(null)
+  const [showHistory, setShowHistory] = useState(false)
   const logRef = useRef(null)
+  const histRef = useRef(null)
 
   useEffect(() => {
     if (logRef.current) logRef.current.scrollTop = logRef.current.scrollHeight
-  }, [logs])
+  }, [logs, sessionStart])
+
+  const toMs = ts => ts ? (ts.toDate ? ts.toDate() : new Date(ts)).getTime() : 0
+
+  const currentLogs = sessionStart ? logs.filter(l => toMs(l.timestamp) >= sessionStart) : []
+  const historyLogs = sessionStart ? logs.filter(l => toMs(l.timestamp) < sessionStart) : logs
 
   async function handleStart() {
+    setSessionStart(Date.now())
+    setShowHistory(false)
     await sendCommand('start', config)
   }
 
@@ -103,20 +123,27 @@ export default function App() {
       </div>
 
       <div className="card">
-        <div className="card-title">Log en tiempo real</div>
+        <div className="card-title">Log — sesion actual</div>
         <div className="log-box" ref={logRef}>
-          {logs.length === 0
-            ? <span style={{ color: 'var(--muted)' }}>Sin actividad aun...</span>
-            : logs.map(l =>
-              l.level === 'separator'
-                ? <hr key={l.id} className="log-separator" />
-                : <div key={l.id} className="log-line">
-                    <span className="log-time">{fmt(l.timestamp)}</span>
-                    <span className={`log-msg ${l.level}`}>{l.message}</span>
-                  </div>
-            )
+          {currentLogs.length === 0
+            ? <span style={{ color: 'var(--muted)' }}>Inicia el agente para ver actividad...</span>
+            : currentLogs.map(l => <LogLine key={l.id} l={l} />)
           }
         </div>
+        {historyLogs.length > 0 && (
+          <button
+            className="btn"
+            style={{ marginTop: 10, fontSize: 12, padding: '6px 14px' }}
+            onClick={() => setShowHistory(h => !h)}
+          >
+            {showHistory ? 'Ocultar historial de logs' : `Ver historial de logs (${historyLogs.length} entradas)`}
+          </button>
+        )}
+        {showHistory && (
+          <div className="log-box" ref={histRef} style={{ marginTop: 8, opacity: 0.6 }}>
+            {historyLogs.map(l => <LogLine key={l.id} l={l} />)}
+          </div>
+        )}
       </div>
 
       <div className="card">
@@ -161,8 +188,8 @@ export default function App() {
                 <th>Fecha</th>
                 <th>Nicho</th>
                 <th>Ciudad</th>
-                <th>Leads encontrados</th>
-                <th>Duplicados salteados</th>
+                <th>Leads</th>
+                <th>Duplicados</th>
                 <th>Estado</th>
               </tr>
             </thead>
