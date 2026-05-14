@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState } from 'react'
 import { useAgentControl } from './useAgent'
 import './index.css'
 
@@ -16,29 +16,25 @@ function fmtDate(ts) {
 
 function SessionBlock({ run, logs, isActive }) {
   const [open, setOpen] = useState(isActive)
-  const logRef = useRef(null)
   const sessionLogs = logs.filter(l => l.run_id === run.id)
-
-  useEffect(() => {
-    if (isActive && logRef.current) logRef.current.scrollTop = logRef.current.scrollHeight
-  }, [sessionLogs.length, isActive])
 
   return (
     <div className={`session-block ${isActive ? 'active' : ''}`}>
       <div className="session-header" onClick={() => setOpen(o => !o)}>
         <div className="session-header-left">
-          <div className={`dot ${isActive ? 'pulse' : ''}`} style={{ color: isActive ? 'var(--green)' : 'var(--muted)', flexShrink: 0 }}></div>
+          <div className="dot" style={{ color: isActive ? 'var(--green)' : 'var(--muted)', flexShrink: 0, ...(isActive ? {} : {}) }}></div>
           <span className="session-title">{run.niche || '—'} / {run.city || '—'}</span>
           <span className="session-meta">{fmtDate(run.started_at)}</span>
           {run.leads_found > 0 && <span className="badge analyzed">{run.leads_found} leads</span>}
           {!run.completed && !isActive && <span className="badge pending">interrumpida</span>}
+          {run.completed && <span className="badge sent">completada</span>}
         </div>
         <span className="session-chevron">{open ? '▲' : '▼'}</span>
       </div>
       {open && (
-        <div className="log-box" ref={logRef} style={{ borderTop: '1px solid var(--border)', borderRadius: '0 0 8px 8px' }}>
+        <div className="log-box" style={{ borderTop: '1px solid var(--border)', borderRadius: '0 0 8px 8px' }}>
           {sessionLogs.length === 0
-            ? <span style={{ color: 'var(--muted)' }}>Sin logs aun...</span>
+            ? <span style={{ color: 'var(--muted)' }}>Sin logs...</span>
             : sessionLogs.map(l => (
               <div key={l.id} className="log-line">
                 <span className="log-time">{fmt(l.timestamp)}</span>
@@ -53,8 +49,11 @@ function SessionBlock({ run, logs, isActive }) {
 }
 
 export default function App() {
-  const { status, logs, leads, runs, metrics, sendCommand } = useAgentControl()
+  const { status, logs, leads, runs, metrics, sendCommand, serverOnline } = useAgentControl()
   const [config, setConfig] = useState({ niche: '', city: 'Cordoba', target: 25, pause: 45 })
+
+  const running = status.running
+  const activeRunId = runs.length > 0 && running ? runs[0].id : null
 
   async function handleStart() {
     await sendCommand('start', config)
@@ -64,9 +63,6 @@ export default function App() {
     await sendCommand('stop')
   }
 
-  const running = status.running
-  const activeRunId = runs.length > 0 ? runs[0].id : null
-
   return (
     <div className="panel">
 
@@ -75,11 +71,23 @@ export default function App() {
           <div className="agent-label">Agente de leads</div>
           <div className="agent-name">LeadBot</div>
         </div>
-        <div className={`status-pill ${running ? 'running' : ''}`}>
-          <div className={`dot ${running ? 'pulse' : ''}`}></div>
-          {running ? 'Corriendo' : 'Detenido'}
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6 }}>
+          <div className={`status-pill ${running ? 'running' : ''}`}>
+            <div className={`dot ${running ? 'pulse' : ''}`}></div>
+            {running ? 'Corriendo' : 'Detenido'}
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: serverOnline ? 'var(--green)' : 'var(--red)' }}>
+            <div className="dot" style={{ width: 5, height: 5, color: serverOnline ? 'var(--green)' : 'var(--red)' }}></div>
+            {serverOnline ? 'Servidor local online' : 'Servidor local offline'}
+          </div>
         </div>
       </div>
+
+      {!serverOnline && (
+        <div style={{ padding: '10px 14px', borderRadius: 8, background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)', fontSize: 12, color: 'var(--red)', fontFamily: 'var(--mono)' }}>
+          Correr <strong>LeadBot.bat</strong> en tu PC para habilitar el inicio automatico del agente.
+        </div>
+      )}
 
       <div className="card">
         <div className="card-title">Configuracion</div>
@@ -137,17 +145,12 @@ export default function App() {
       </div>
 
       <div className="card">
-        <div className="card-title">Sesiones</div>
+        <div className="card-title">Sesiones ({runs.length})</div>
         {runs.length === 0
-          ? <span style={{ color: 'var(--muted)', fontSize: 12, fontFamily: 'var(--mono)' }}>Sin sesiones aun — inicia el agente</span>
+          ? <span style={{ color: 'var(--muted)', fontSize: 12, fontFamily: 'var(--mono)' }}>Sin sesiones — inicia el agente</span>
           : <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               {runs.map(run => (
-                <SessionBlock
-                  key={run.id}
-                  run={run}
-                  logs={logs}
-                  isActive={run.id === activeRunId && running}
-                />
+                <SessionBlock key={run.id} run={run} logs={logs} isActive={run.id === activeRunId} />
               ))}
             </div>
         }
