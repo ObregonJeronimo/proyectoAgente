@@ -107,12 +107,14 @@ export default function App() {
         <div className="log-box" ref={logRef}>
           {logs.length === 0
             ? <span style={{ color: 'var(--muted)' }}>Sin actividad aun...</span>
-            : logs.map(l => (
-              <div key={l.id} className="log-line">
-                <span className="log-time">{fmt(l.timestamp)}</span>
-                <span className={`log-msg ${l.level}`}>{l.message}</span>
-              </div>
-            ))
+            : logs.map(l =>
+              l.level === 'separator'
+                ? <hr key={l.id} className="log-separator" />
+                : <div key={l.id} className="log-line">
+                    <span className="log-time">{fmt(l.timestamp)}</span>
+                    <span className={`log-msg ${l.level}`}>{l.message}</span>
+                  </div>
+            )
           }
         </div>
       </div>

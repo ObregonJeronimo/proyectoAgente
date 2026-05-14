@@ -111,6 +111,7 @@ body {
 .log-msg.success { color: var(--green); }
 .log-msg.warning { color: var(--amber); }
 .log-msg.error { color: var(--red); }
+.log-separator { width: 100%; border: none; border-top: 1px solid var(--border-strong); margin: 4px 0; }
 
 .table-wrap { overflow-x: auto; }
 table { width: 100%; border-collapse: collapse; font-size: 13px; }
