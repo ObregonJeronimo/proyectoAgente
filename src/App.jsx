@@ -95,8 +95,60 @@ function SessionCard({ run, logs, isActive }) {
   )
 }
 
+function NicheManager({ niches, onAdd, onDelete, onSelect }) {
+  const [input, setInput] = useState('')
+  function handleAdd() {
+    const trimmed = input.trim()
+    if (!trimmed) return
+    onAdd(trimmed)
+    setInput('')
+  }
+  return (
+    <div className="card">
+      <div className="card-title">Nichos guardados</div>
+      <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+        <input
+          type="text"
+          placeholder="Ej: Plomero, Dentista, Gym..."
+          value={input}
+          onChange={e => setInput(e.target.value)}
+          onKeyDown={e => e.key === 'Enter' && handleAdd()}
+          style={{ flex: 1, background: 'var(--surface)', border: '1px solid var(--border-strong)', color: 'var(--text)', borderRadius: 8, padding: '8px 12px', fontSize: 13, fontFamily: 'inherit', outline: 'none' }}
+        />
+        <button className="btn start" onClick={handleAdd} style={{ padding: '8px 16px' }}>
+          + Agregar
+        </button>
+      </div>
+      {niches.length === 0
+        ? <span style={{ color: 'var(--muted)', fontSize: 12, fontFamily: 'var(--mono)' }}>Sin nichos — agregá uno arriba</span>
+        : <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+            {niches.map(n => (
+              <div key={n.id} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '5px 10px 5px 14px', borderRadius: 99, border: '1px solid var(--border-strong)', background: 'var(--surface)', fontSize: 13 }}>
+                <span
+                  style={{ color: 'var(--text)', cursor: 'pointer' }}
+                  onClick={() => onSelect(n.name)}
+                  title="Usar este nicho"
+                >
+                  {n.name}
+                </span>
+                <button
+                  onClick={() => onDelete(n.id)}
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--muted)', fontSize: 14, lineHeight: 1, padding: '0 2px' }}
+                  title="Eliminar"
+                >
+                  ×
+                </button>
+              </div>
+            ))}
+          </div>
+      }
+      {niches.length > 0 && <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 8 }}>Tocá un nicho para usarlo en la configuración</div>}
+    </div>
+  )
+}
+
 export default function App() {
-  const { status, logs, leads, runs, metrics, sendCommand, serverOnline, clearAll } = useAgentControl()
+  const { status, logs, leads, runs, niches, metrics, sendCommand, serverOnline, clearAll, addNiche, deleteNiche } = useAgentControl()
   const [config, setConfig] = useState({ niche: '', city: 'Cordoba', target: 25, pause: 45, max_reviews: 80, min_rating: 3.9 })
   const [clearing, setClearing] = useState(false)
   const [expandedLead, setExpandedLead] = useState(null)
@@ -138,6 +190,13 @@ export default function App() {
           </div>
         </div>
       </div>
+
+      <NicheManager
+        niches={niches}
+        onAdd={addNiche}
+        onDelete={deleteNiche}
+        onSelect={name => setConfig(c => ({ ...c, niche: name }))}
+      />
 
       <div className="card">
         <div className="card-title">Configuracion</div>

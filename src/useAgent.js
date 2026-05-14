@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import {
   doc, collection, onSnapshot, setDoc, addDoc,
-  query, orderBy, limit, serverTimestamp, writeBatch, getDocs
+  query, orderBy, limit, serverTimestamp, writeBatch, getDocs, deleteDoc
 } from 'firebase/firestore'
 import { db } from './firebase'
 
@@ -14,6 +14,7 @@ export function useAgentControl() {
   const [runs, setRuns] = useState([])
   const [metrics, setMetrics] = useState({ leads: 0, sent: 0, replied: 0 })
   const [serverOnline, setServerOnline] = useState(false)
+  const [niches, setNiches] = useState([])
 
   useEffect(() => {
     const unsub1 = onSnapshot(doc(db, 'agent_control', 'status'), snap => {
@@ -36,6 +37,11 @@ export function useAgentControl() {
       })
     })
 
+    const nichesQ = query(collection(db, 'niches'), orderBy('created_at', 'asc'))
+    const unsub5 = onSnapshot(nichesQ, snap => {
+      setNiches(snap.docs.map(d => ({ id: d.id, ...d.data() })))
+    })
+
     const runsQ = query(collection(db, 'runs'), orderBy('started_at', 'desc'), limit(20))
     const unsub4 = onSnapshot(runsQ, snap => {
       setRuns(snap.docs.map(d => ({ id: d.id, ...d.data() })))
@@ -52,7 +58,7 @@ export function useAgentControl() {
     checkServer()
     const interval = setInterval(checkServer, 3000)
 
-    return () => { unsub1(); unsub2(); unsub3(); unsub4(); clearInterval(interval) }
+    return () => { unsub1(); unsub2(); unsub3(); unsub4(); unsub5(); clearInterval(interval) }
   }, [])
 
   async function sendCommand(command, config = {}) {
@@ -73,6 +79,20 @@ export function useAgentControl() {
         })
       } catch {}
     }
+  }
+
+  async function getNiches() {
+    const snap = await getDocs(collection(db, 'niches'))
+    return snap.docs.map(d => ({ id: d.id, ...d.data() }))
+  }
+
+  async function addNiche(name) {
+    await addDoc(collection(db, 'niches'), { name, created_at: serverTimestamp() })
+  }
+
+  async function deleteNiche(id) {
+    const { deleteDoc, doc: docRef } = await import('firebase/firestore')
+    await deleteDoc(docRef(db, 'niches', id))
   }
 
   async function clearAll() {
@@ -101,5 +121,5 @@ export function useAgentControl() {
     }, { merge: true })
   }
 
-  return { status, logs, leads, runs, metrics, sendCommand, serverOnline, clearAll }
+  return { status, logs, leads, runs, niches, metrics, sendCommand, serverOnline, clearAll, addNiche, deleteNiche: async (id) => { await deleteDoc(doc(db, 'niches', id)) } }
 }
