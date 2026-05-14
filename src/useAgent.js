@@ -9,6 +9,7 @@ export function useAgentControl() {
   const [status, setStatus] = useState({ running: false, current_task: '', command: 'idle' })
   const [logs, setLogs] = useState([])
   const [leads, setLeads] = useState([])
+  const [runs, setRuns] = useState([])
   const [metrics, setMetrics] = useState({ leads: 0, sent: 0, replied: 0 })
 
   useEffect(() => {
@@ -21,7 +22,7 @@ export function useAgentControl() {
       setLogs(snap.docs.map(d => ({ id: d.id, ...d.data() })).reverse())
     })
 
-    const leadsQ = query(collection(db, 'leads'), orderBy('created_at', 'desc'), limit(50))
+    const leadsQ = query(collection(db, 'leads'), orderBy('created_at', 'desc'), limit(200))
     const unsub3 = onSnapshot(leadsQ, snap => {
       const data = snap.docs.map(d => ({ id: d.id, ...d.data() }))
       setLeads(data)
@@ -32,7 +33,12 @@ export function useAgentControl() {
       })
     })
 
-    return () => { unsub1(); unsub2(); unsub3() }
+    const runsQ = query(collection(db, 'runs'), orderBy('started_at', 'desc'), limit(20))
+    const unsub4 = onSnapshot(runsQ, snap => {
+      setRuns(snap.docs.map(d => ({ id: d.id, ...d.data() })))
+    })
+
+    return () => { unsub1(); unsub2(); unsub3(); unsub4() }
   }, [])
 
   async function sendCommand(command, config = {}) {
@@ -45,13 +51,5 @@ export function useAgentControl() {
     }, { merge: true })
   }
 
-  async function addLog(message, level = 'info') {
-    await addDoc(collection(db, 'logs'), {
-      message,
-      level,
-      timestamp: serverTimestamp(),
-    })
-  }
-
-  return { status, logs, leads, metrics, sendCommand, addLog }
+  return { status, logs, leads, runs, metrics, sendCommand }
 }
